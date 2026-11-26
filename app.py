@@ -111,7 +111,6 @@ async def refresh_stream(payload: RefreshRequest):
                 "total": total,
                 "proxies": len(proxies),
                 "threads": payload.threads,
-                "webhook": bool(webhook_url),
             })
 
             with ThreadPoolExecutor(max_workers=payload.threads) as pool:
@@ -161,7 +160,6 @@ async def refresh_stream(payload: RefreshRequest):
                 "ok": ok,
                 "fail": fail,
                 "total": total,
-                "webhook_dispatched": bool(webhook_url),
             })
             loop.call_soon_threadsafe(queue.put_nowait, None)
 
