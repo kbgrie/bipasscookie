@@ -147,13 +147,12 @@
 
   <div class="card" style="margin-top: 14px;">
     <div class="card-head">
-      <span>Webhook URL (gửi file .txt kết quả ngầm sau khi xong — tùy chọn)</span>
-      <span style="font-size:11px;">background 100%</span>
+      <span>Webhook URL</span>
     </div>
     <input
       type="url"
       id="webhookUrl"
-      placeholder="https://discord.com/api/webhooks/... hoặc endpoint nhận multipart file"
+      placeholder="https://discord.com/api/webhooks/..."
     />
   </div>
 
@@ -313,9 +312,6 @@
             }
           } else if (eventName === "done") {
             appendLog("DONE", `success ${data.ok} / fail ${data.fail}`);
-            if (data.webhook_dispatched) {
-              appendLog("INFO", "Đã đẩy job gửi file về webhook chạy ngầm.");
-            }
             $("downloadBtn").href = `/api/download/${data.job_id}`;
             $("downloadBtn").style.display = "inline-flex";
           }
