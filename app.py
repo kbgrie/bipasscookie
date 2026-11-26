@@ -1,15 +1,14 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 import io
 import json
-import os
 import queue
 import random
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
-from flask import Flask, Response, render_template, request, stream_with_context
 import requests
+from flask import Flask, Response, render_template, request, stream_with_context
 
 app = Flask(__name__)
 
@@ -331,4 +330,4 @@ def process_accounts():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=False)
