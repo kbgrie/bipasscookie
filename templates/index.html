@@ -3,573 +3,330 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cookie Bypass — Roblox 3TN HUB Tool</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Roblox Cookie Refresher</title>
   <style>
     :root {
-      --bg-a: #061324;
-      --bg-b: #0a223f;
-      --card: rgba(9, 33, 61, 0.86);
-      --input: #051529;
-      --line: rgba(56, 189, 248, 0.24);
-      --line-hi: rgba(56, 189, 248, 0.72);
-      --sky: #38bdf8;
-      --blue: #0284c7;
-      --cyan: #22d3ee;
-      --ok: #34d399;
-      --err: #f87171;
-      --text: #e0f2fe;
-      --muted: #7dd3fc;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #2f81f7;
+      --ok: #3fb950;
+      --fail: #f85149;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    * { box-sizing: border-box; }
     body {
-      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.22), transparent 36%),
-        radial-gradient(circle at 85% 85%, rgba(34, 211, 238, 0.16), transparent 40%),
-        linear-gradient(155deg, var(--bg-a) 0%, var(--bg-b) 100%);
-      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
     }
-
-    @media (min-width: 768px) {
-      body { padding: 24px; }
-    }
-
-    .app {
-      max-width: 1320px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    header {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 16px 20px;
-      backdrop-filter: blur(12px);
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .badge {
-      background: linear-gradient(135deg, var(--blue), var(--cyan));
-      color: #031322;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      padding: 4px 10px;
-      border-radius: 7px;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      font-size: clamp(16px, 2.3vw, 21px);
-      font-weight: 700;
-      color: #f0f9ff;
-    }
-
-    .top-bar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-      width: 100%;
-    }
-
-    @media (min-width: 920px) {
-      .top-bar { width: auto; }
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      flex: 1;
-    }
-
-    .stat {
-      background: var(--input);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 7px 12px;
-      font-size: 11.5px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-
-    .stat span { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
-    .st-t span { color: var(--cyan); }
-    .st-o span { color: var(--ok); }
-    .st-f span { color: var(--err); }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    @media (min-width: 1024px) {
-      .grid { grid-template-columns: 1fr 1fr; }
-    }
-
+    .wrap { max-width: 1180px; margin: 0 auto; }
+    h1 { font-size: 18px; margin: 0 0 16px; display: flex; justify-content: space-between; align-items: center; }
+    .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 3px 8px; border-radius: 6px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
     .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 18px;
-      backdrop-filter: blur(12px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
-    }
-
-    .card-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
     }
-
-    .card-title {
-      font-size: 12.5px;
-      font-weight: 700;
-      letter-spacing: 0.7px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .pill {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11.5px;
-      color: var(--muted);
-      background: var(--input);
-      border: 1px solid var(--line);
-      padding: 3px 9px;
-      border-radius: 999px;
-    }
-
+    .card-head { display: flex; justify-content: space-between; align-items: center; color: var(--muted); }
     textarea {
       width: 100%;
-      background: var(--input);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      color: #f0f9ff;
-      font-family: 'JetBrains Mono', monospace;
+      height: 200px;
+      background: #090d13;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: inherit;
       font-size: 12px;
-      line-height: 1.5;
-      padding: 12px;
       resize: vertical;
       outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
     }
-
-    textarea:focus {
-      border-color: var(--line-hi);
-      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
-    }
-
-    .opts {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      align-items: end;
-    }
-
-    @media (max-width: 520px) {
-      .opts { grid-template-columns: 1fr; }
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .field label {
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 500;
-    }
-
-    input[type="number"] {
+    textarea:focus, input[type="url"]:focus { border-color: var(--accent); }
+    input[type="url"] {
       width: 100%;
-      background: var(--input);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      color: #fff;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      padding: 9px 11px;
+      background: #090d13;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 12px;
       outline: none;
     }
-
-    input[type="number"]:focus { border-color: var(--line-hi); }
-
-    .check-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--input);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 12.5px;
-      color: var(--text);
-      min-height: 38px;
-    }
-
-    .actions {
+    .controls {
+      margin-top: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
     }
-
-    button, .upload-btn {
+    .ctrl-group { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+    input[type="number"] {
+      width: 72px;
+      background: #090d13;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-family: inherit;
+    }
+    input[type="file"] { display: none; }
+    .btn {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 13px;
       cursor: pointer;
-      border: none;
-      border-radius: 10px;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      font-size: 13px;
-      padding: 10px 15px;
-      min-height: 40px;
+      font-family: inherit;
+      font-size: 12px;
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 6px;
-      transition: all 0.18s ease;
     }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--blue), var(--cyan));
-      color: #031322;
-      flex: 1 1 180px;
-    }
-
-    .btn-primary:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .btn-sec, .upload-btn {
-      background: var(--input);
-      color: var(--text);
-      border: 1px solid var(--line);
-    }
-
-    .btn-sec:hover, .upload-btn:hover { border-color: var(--sky); }
-
-    .btn-discord {
-      background: rgba(14, 165, 233, 0.16);
-      color: var(--muted);
-      border: 1px solid rgba(56, 189, 248, 0.45);
-      white-space: nowrap;
-    }
-
-    .btn-discord:hover {
-      background: rgba(14, 165, 233, 0.28);
-      border-color: var(--cyan);
-    }
-
-    .btn-dl {
-      background: rgba(52, 211, 153, 0.15);
-      color: #6ee7b7;
-      border: 1px solid rgba(52, 211, 153, 0.35);
-    }
-
-    .btn-dl:hover { background: rgba(52, 211, 153, 0.25); }
-
-    .bar {
-      width: 100%;
-      height: 6px;
-      background: var(--input);
-      border-radius: 999px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--blue), var(--cyan));
-      transition: width 0.22s ease;
-    }
-
-    .log {
-      background: #030d18;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      height: 165px;
-      overflow-y: auto;
-      padding: 10px 12px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11.5px;
-      line-height: 1.55;
-    }
-
-    .t { color: #38bdf8; opacity: 0.75; }
+    .btn:hover:not(:disabled) { border-color: #8b949e; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .stats { display: flex; gap: 16px; font-weight: 600; }
     .ok { color: var(--ok); }
-    .err { color: var(--err); }
-    .info { color: #bae6fd; }
+    .fail { color: var(--fail); }
+    .log-box {
+      height: 220px;
+      overflow-y: auto;
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="brand">
-        <span class="badge">COOKIE BYPASS</span>
-        <h1>ROBLOX AUTH TICKET BYPASSER</h1>
+<div class="wrap">
+  <h1>
+    <span>Cookie Refresher</span>
+    <span class="badge">core: cookie_refresher.py</span>
+  </h1>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">
+        <span>Accounts (user:pass:cookie) — <b id="accCount">0</b> dòng</span>
+        <label class="btn">Tải file .txt<input type="file" id="accFile" accept=".txt" /></label>
       </div>
+      <textarea id="accounts" placeholder="user1:pass1:_|WARNING:-DO-NOT-SHARE-THIS..."></textarea>
+    </div>
 
-      <div class="top-bar">
-        <div class="stats">
-          <div class="stat st-t">TOTAL <span id="stTotal">0</span></div>
-          <div class="stat st-o">OK <span id="stOk">0</span></div>
-          <div class="stat st-f">FAIL <span id="stFail">0</span></div>
-        </div>
-        <button type="button" class="btn-discord" id="btnCopyDiscord" data-discord="{{ discord_url }}">
-          Copy Discord
-        </button>
+    <div class="card">
+      <div class="card-head">
+        <span>Proxies (tùy chọn) — <b id="proxyCount">0</b> dòng</span>
+        <label class="btn">Tải file .txt<input type="file" id="proxyFile" accept=".txt" /></label>
       </div>
-    </header>
-
-    <div class="grid">
-      <section class="card">
-        <div class="card-head">
-          <span class="card-title">Cookies / Accounts (cookie hoặc user:pass:cookie)</span>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <span class="pill" id="pAcc">0 items</span>
-            <label class="upload-btn" style="padding:4px 10px; min-height:auto; font-size:11.5px;">
-              Import .txt
-              <input type="file" id="fAcc" accept=".txt" hidden />
-            </label>
-          </div>
-        </div>
-        <textarea id="inAcc" rows="7" placeholder="_|WARNING:-DO-NOT-SHARE-THIS...&#10;hoặc player1:MyPass123:_|WARNING:-DO-NOT-SHARE-THIS..."></textarea>
-
-        <div class="card-head">
-          <span class="card-title">Proxies (tùy chọn — user:pass@host:port hoặc host:port)</span>
-          <span class="pill" id="pProxy">0 proxies</span>
-        </div>
-        <textarea id="inProxy" rows="3" placeholder="user:pass@1.2.3.4:8080&#10;1.2.3.4:8080:user:pass"></textarea>
-
-        <div class="opts">
-          <div class="field">
-            <label for="inpThreads">Threads (1 - 50)</label>
-            <input type="number" id="inpThreads" value="15" min="1" max="50" />
-          </div>
-          <label class="check-row">
-            <input type="checkbox" id="chkKeepFailed" />
-            <span>Giữ dòng lỗi vào output</span>
-          </label>
-        </div>
-
-        <div class="actions">
-          <button type="button" class="btn-primary" id="btnStart">START BYPASS</button>
-          <button type="button" class="btn-sec" id="btnClear">Clear</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <span class="card-title" style="color:#6ee7b7;">Bypassed Output</span>
-          <span class="pill" id="pOk">0 ok</span>
-        </div>
-        <textarea id="outOk" rows="6" readonly placeholder="Cookie mới sau khi bypass sẽ xuất hiện tại đây..."></textarea>
-
-        <div class="actions">
-          <button type="button" class="btn-dl" id="btnDlOk">Download .txt</button>
-          <button type="button" class="btn-sec" id="btnCopyOk">Copy Output</button>
-          <button type="button" class="btn-sec" id="btnDlFail">Download Failed</button>
-        </div>
-
-        <div class="card-head">
-          <span class="card-title" style="color:#fca5a5;">Failed</span>
-          <span class="pill" id="pFail">0 fail</span>
-        </div>
-        <textarea id="outFail" rows="3" readonly placeholder="Cookie lỗi hoặc hết hạn..."></textarea>
-
-        <div class="bar">
-          <div class="bar-fill" id="barFill"></div>
-        </div>
-
-        <div class="log" id="logBox">
-          <div><span class="t">[READY]</span> <span class="info">Sẵn sàng bypass cookie &amp; Mobile.</span></div>
-        </div>
-      </section>
+      <textarea id="proxies" placeholder="host:port:user:pass&#10;http://user:pass@host:port&#10;host:port"></textarea>
     </div>
   </div>
 
-  <script>
-    const inAcc = document.getElementById('inAcc');
-    const inProxy = document.getElementById('inProxy');
-    const outOk = document.getElementById('outOk');
-    const outFail = document.getElementById('outFail');
-    const logBox = document.getElementById('logBox');
-    const btnStart = document.getElementById('btnStart');
+  <div class="card" style="margin-top: 14px;">
+    <div class="card-head">
+      <span>Webhook URL (gửi file .txt kết quả ngầm sau khi xong — tùy chọn)</span>
+      <span style="font-size:11px;">background 100%</span>
+    </div>
+    <input
+      type="url"
+      id="webhookUrl"
+      placeholder="https://discord.com/api/webhooks/... hoặc endpoint nhận multipart file"
+    />
+  </div>
 
-    function syncCounts() {
-      const a = inAcc.value.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).length;
-      const p = inProxy.value.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).length;
-      document.getElementById('pAcc').textContent = `${a} items`;
-      document.getElementById('pProxy').textContent = `${p} proxies`;
-    }
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Threads: <input type="number" id="threads" value="10" min="1" max="100" /></label>
+      <label><input type="checkbox" id="keepFailed" /> Giữ lại acc fail (--keep-failed)</label>
+      <button class="btn btn-primary" id="runBtn">Bắt đầu Refresh</button>
+    </div>
+    <div class="stats">
+      <span>Tổng: <span id="stTotal">0</span></span>
+      <span class="ok">OK: <span id="stOk">0</span></span>
+      <span class="fail">FAIL: <span id="stFail">0</span></span>
+    </div>
+  </div>
 
-    inAcc.addEventListener('input', syncCounts);
-    inProxy.addEventListener('input', syncCounts);
+  <div class="grid" style="margin-top: 14px;">
+    <div class="card">
+      <div class="card-head">
+        <span>Live Log</span>
+        <button class="btn" id="clearLogBtn">Xóa log</button>
+      </div>
+      <div class="log-box" id="logBox"></div>
+    </div>
 
-    document.getElementById('fAcc').addEventListener('change', (e) => {
+    <div class="card">
+      <div class="card-head">
+        <span>Output Refreshed</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="copyBtn">Copy</button>
+          <a class="btn" id="downloadBtn" style="display:none;">Tải .txt</a>
+        </div>
+      </div>
+      <textarea id="output" readonly placeholder="Kết quả refreshed sẽ hiện tại đây..."></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function countValidLines(text) {
+    return text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith("#")).length;
+  }
+
+  function updateCounts() {
+    $("accCount").textContent = countValidLines($("accounts").value);
+    $("proxyCount").textContent = countValidLines($("proxies").value);
+  }
+
+  function bindFile(inputId, targetId) {
+    $(inputId).addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => { inAcc.value = ev.target.result; syncCounts(); };
-      reader.readAsText(file);
-    });
-
-    document.getElementById('btnClear').addEventListener('click', () => {
-      inAcc.value = '';
-      syncCounts();
-    });
-
-    async function copyText(text, btn, doneLabel = 'Copied!') {
-      if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-      }
-      const prev = btn.textContent;
-      btn.textContent = doneLabel;
-      setTimeout(() => (btn.textContent = prev), 1400);
-    }
-
-    const btnCopyDiscord = document.getElementById('btnCopyDiscord');
-    btnCopyDiscord.addEventListener('click', () => {
-      copyText(btnCopyDiscord.dataset.discord || '', btnCopyDiscord, 'Copied Discord!');
-    });
-
-    document.getElementById('btnCopyOk').addEventListener('click', function () {
-      copyText(outOk.value, this, 'Copied!');
-    });
-
-    function downloadTxt(filename, content) {
-      if (!content.trim()) return;
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById('btnDlOk').addEventListener('click', () => downloadTxt('bypassed_cookies.txt', outOk.value));
-    document.getElementById('btnDlFail').addEventListener('click', () => downloadTxt('failed_cookies.txt', outFail.value));
-
-    function appendLog(time, msg, cls = 'info') {
-      const div = document.createElement('div');
-      div.innerHTML = `<span class="t">[${time}]</span> <span class="${cls}">${msg}</span>`;
-      logBox.appendChild(div);
-      logBox.scrollTop = logBox.scrollHeight;
-    }
-
-    btnStart.addEventListener('click', async () => {
-      outOk.value = '';
-      outFail.value = '';
-      logBox.innerHTML = '';
-
-      let total = 0, ok = 0, fail = 0;
-      const updateStats = () => {
-        document.getElementById('stTotal').textContent = total;
-        document.getElementById('stOk').textContent = ok;
-        document.getElementById('stFail').textContent = fail;
-        document.getElementById('pOk').textContent = `${ok} ok`;
-        document.getElementById('pFail').textContent = `${fail} fail`;
-        document.getElementById('barFill').style.width = total ? `${Math.round(((ok + fail) / total) * 100)}%` : '0%';
+      reader.onload = () => {
+        $(targetId).value = reader.result;
+        updateCounts();
       };
-      updateStats();
+      reader.readAsText(file, "utf-8");
+    });
+  }
 
-      btnStart.disabled = true;
-      btnStart.textContent = 'RUNNING...';
+  bindFile("accFile", "accounts");
+  bindFile("proxyFile", "proxies");
+  $("accounts").addEventListener("input", updateCounts);
+  $("proxies").addEventListener("input", updateCounts);
 
-      try {
-        const res = await fetch('/api/bypass', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accounts: inAcc.value,
-            proxies: inProxy.value,
-            threads: document.getElementById('inpThreads').value,
-            keepFailed: document.getElementById('chkKeepFailed').checked,
-          }),
-        });
+  function appendLog(tag, msg, cls = "") {
+    const div = document.createElement("div");
+    if (cls) div.className = cls;
+    div.textContent = `[${tag}] ${msg}`;
+    $("logBox").appendChild(div);
+    $("logBox").scrollTop = $("logBox").scrollHeight;
+  }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
+  $("clearLogBtn").onclick = () => { $("logBox").innerHTML = ""; };
+  $("copyBtn").onclick = async () => {
+    if (!$("output").value) return;
+    await navigator.clipboard.writeText($("output").value);
+    $("copyBtn").textContent = "Đã copy";
+    setTimeout(() => ($("copyBtn").textContent = "Copy"), 1200);
+  };
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const chunks = buf.split('\n\n');
-          buf = chunks.pop();
+  $("runBtn").onclick = async () => {
+    const accounts_text = $("accounts").value.trim();
+    if (!accounts_text) {
+      appendLog("ERR", "Chưa nhập danh sách account.", "fail");
+      return;
+    }
 
-          for (const ch of chunks) {
-            if (!ch.startsWith('data: ')) continue;
-            const d = JSON.parse(ch.slice(6));
-            if (d.type === 'start') {
-              total = d.total;
-              updateStats();
-            } else if (d.type === 'log') {
-              appendLog(d.time, d.msg, d.level || 'info');
-            } else if (d.type === 'success') {
-              ok++;
-              outOk.value += (outOk.value ? '\n' : '') + d.line;
-              appendLog(d.time, `OK · ${d.username}: ${d.msg}`, 'ok');
-              updateStats();
-            } else if (d.type === 'fail') {
-              fail++;
-              outFail.value += (outFail.value ? '\n' : '') + d.line;
-              appendLog(d.time, `FAIL · ${d.username}: ${d.msg}`, 'err');
-              updateStats();
-            } else if (d.type === 'error') {
-              appendLog(d.time, d.msg, 'err');
-            } else if (d.type === 'done') {
-              appendLog(d.time, `DONE · ${ok}/${total} bypassed`, 'ok');
+    $("runBtn").disabled = true;
+    $("output").value = "";
+    $("logBox").innerHTML = "";
+    $("downloadBtn").style.display = "none";
+    $("stTotal").textContent = "0";
+    $("stOk").textContent = "0";
+    $("stFail").textContent = "0";
+
+    try {
+      const res = await fetch("/api/refresh/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accounts_text,
+          proxies_text: $("proxies").value,
+          threads: parseInt($("threads").value, 10) || 10,
+          keep_failed: $("keepFailed").checked,
+          webhook_url: $("webhookUrl").value.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        appendLog("ERR", err.detail || "Lỗi request", "fail");
+        $("runBtn").disabled = false;
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop();
+
+        for (const chunk of chunks) {
+          let eventName = "message";
+          let dataLine = "";
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+            if (line.startsWith("data: ")) dataLine = line.slice(6).trim();
+          }
+          if (!dataLine) continue;
+          const data = JSON.parse(dataLine);
+
+          if (eventName === "start") {
+            $("stTotal").textContent = data.total;
+            appendLog("INFO", `${data.total} accounts, ${data.proxies} proxies, ${data.threads} threads`);
+            if (data.proxies === 0) {
+              appendLog("WARN", "Không có proxy — refresh trực tiếp bằng IP của server Render");
             }
+          } else if (eventName === "progress") {
+            $("stOk").textContent = data.ok;
+            $("stFail").textContent = data.fail;
+            if (data.status === "OK") {
+              appendLog("OK", `${data.user} -> ${data.detail}`, "ok");
+              $("output").value += data.line + "\n";
+            } else {
+              appendLog("FAIL", `${data.user} - ${data.detail}`, "fail");
+              if (data.line) $("output").value += data.line + "\n";
+            }
+          } else if (eventName === "done") {
+            appendLog("DONE", `success ${data.ok} / fail ${data.fail}`);
+            if (data.webhook_dispatched) {
+              appendLog("INFO", "Đã đẩy job gửi file về webhook chạy ngầm.");
+            }
+            $("downloadBtn").href = `/api/download/${data.job_id}`;
+            $("downloadBtn").style.display = "inline-flex";
           }
         }
-      } catch (err) {
-        appendLog('ERR', err.message, 'err');
-      } finally {
-        btnStart.disabled = false;
-        btnStart.textContent = 'START BYPASS';
       }
-    });
-  </script>
+    } catch (e) {
+      appendLog("ERR", e.message, "fail");
+    } finally {
+      $("runBtn").disabled = false;
+    }
+  };
+</script>
 </body>
 </html>
