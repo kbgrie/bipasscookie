@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bypass Cookie — 3TN HUB Bypass</title>
+  <title>Cookie Bypass — Roblox 3TN HUB Tool</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-0: #04111e;
-      --bg-1: #071b2f;
-      --surface: rgba(8, 30, 52, 0.84);
-      --input: #041424;
-      --line: rgba(56, 189, 248, 0.22);
-      --line-hi: rgba(56, 189, 248, 0.7);
-      --accent: #0ea5e9;
-      --accent-2: #22d3ee;
+      --bg-a: #061324;
+      --bg-b: #0a223f;
+      --card: rgba(9, 33, 61, 0.86);
+      --input: #051529;
+      --line: rgba(56, 189, 248, 0.24);
+      --line-hi: rgba(56, 189, 248, 0.72);
+      --sky: #38bdf8;
+      --blue: #0284c7;
+      --cyan: #22d3ee;
       --ok: #34d399;
       --err: #f87171;
       --text: #e0f2fe;
@@ -29,9 +30,9 @@
       color: var(--text);
       min-height: 100vh;
       background:
-        radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.22), transparent 36%),
+        radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.22), transparent 36%),
         radial-gradient(circle at 85% 85%, rgba(34, 211, 238, 0.16), transparent 40%),
-        linear-gradient(155deg, var(--bg-0) 0%, var(--bg-1) 100%);
+        linear-gradient(155deg, var(--bg-a) 0%, var(--bg-b) 100%);
       padding: 14px;
     }
 
@@ -39,7 +40,7 @@
       body { padding: 24px; }
     }
 
-    .container {
+    .app {
       max-width: 1320px;
       margin: 0 auto;
       display: flex;
@@ -48,7 +49,7 @@
     }
 
     header {
-      background: var(--surface);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 16px 20px;
@@ -67,12 +68,12 @@
       flex-wrap: wrap;
     }
 
-    .tag {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #031525;
-      font-weight: 700;
+    .badge {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #031322;
       font-size: 11px;
-      letter-spacing: 0.7px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
       padding: 4px 10px;
       border-radius: 7px;
       text-transform: uppercase;
@@ -84,7 +85,7 @@
       color: #f0f9ff;
     }
 
-    .header-right {
+    .top-bar {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -92,18 +93,18 @@
       width: 100%;
     }
 
-    @media (min-width: 900px) {
-      .header-right { width: auto; }
+    @media (min-width: 920px) {
+      .top-bar { width: auto; }
     }
 
-    .metrics {
+    .stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       flex: 1;
     }
 
-    .metric {
+    .stat {
       background: var(--input);
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -116,10 +117,10 @@
       gap: 6px;
     }
 
-    .metric span { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
-    .m-total span { color: var(--accent-2); }
-    .m-ok span { color: var(--ok); }
-    .m-fail span { color: var(--err); }
+    .stat span { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+    .st-t span { color: var(--cyan); }
+    .st-o span { color: var(--ok); }
+    .st-f span { color: var(--err); }
 
     .grid {
       display: grid;
@@ -132,7 +133,7 @@
     }
 
     .card {
-      background: var(--surface);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 18px;
@@ -188,17 +189,21 @@
       box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
     }
 
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
+    .opts {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 520px) {
+      .opts { grid-template-columns: 1fr; }
     }
 
     .field {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      gap: 5px;
     }
 
     .field label {
@@ -208,27 +213,30 @@
     }
 
     input[type="number"] {
-      width: 84px;
+      width: 100%;
       background: var(--input);
       border: 1px solid var(--line);
       border-radius: 10px;
       color: #fff;
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
-      padding: 8px 10px;
+      padding: 9px 11px;
       outline: none;
     }
 
     input[type="number"]:focus { border-color: var(--line-hi); }
 
-    .check {
-      display: inline-flex;
+    .check-row {
+      display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 12px;
+      gap: 8px;
+      background: var(--input);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 12.5px;
       color: var(--text);
-      cursor: pointer;
-      user-select: none;
+      min-height: 38px;
     }
 
     .actions {
@@ -254,8 +262,8 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #031525;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #031322;
       flex: 1 1 180px;
     }
 
@@ -268,18 +276,18 @@
       border: 1px solid var(--line);
     }
 
-    .btn-sec:hover, .upload-btn:hover { border-color: var(--accent-2); }
+    .btn-sec:hover, .upload-btn:hover { border-color: var(--sky); }
 
     .btn-discord {
       background: rgba(14, 165, 233, 0.16);
-      color: #7dd3fc;
+      color: var(--muted);
       border: 1px solid rgba(56, 189, 248, 0.45);
       white-space: nowrap;
     }
 
     .btn-discord:hover {
       background: rgba(14, 165, 233, 0.28);
-      border-color: var(--accent-2);
+      border-color: var(--cyan);
     }
 
     .btn-dl {
@@ -301,7 +309,7 @@
     .bar-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
       transition: width 0.22s ease;
     }
 
@@ -324,20 +332,20 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="app">
     <header>
       <div class="brand">
-        <span class="tag">Bypass Cookie</span>
-        <h1>3TN HUB - Bypass Cookie</h1>
+        <span class="badge">COOKIE BYPASS</span>
+        <h1>ROBLOX AUTH TICKET BYPASSER</h1>
       </div>
 
-      <div class="header-right">
-        <div class="metrics">
-          <div class="metric m-total">TOTAL <span id="mTotal">0</span></div>
-          <div class="metric m-ok">OK <span id="mOk">0</span></div>
-          <div class="metric m-fail">FAIL <span id="mFail">0</span></div>
+      <div class="top-bar">
+        <div class="stats">
+          <div class="stat st-t">TOTAL <span id="stTotal">0</span></div>
+          <div class="stat st-o">OK <span id="stOk">0</span></div>
+          <div class="stat st-f">FAIL <span id="stFail">0</span></div>
         </div>
-        <button type="button" class="btn-discord" id="btnCopyDiscord" data-discord="https://discord.gg/vVUz3rJzmK">
+        <button type="button" class="btn-discord" id="btnCopyDiscord" data-discord="{{ discord_url }}">
           Copy Discord
         </button>
       </div>
@@ -346,46 +354,46 @@
     <div class="grid">
       <section class="card">
         <div class="card-head">
-          <span class="card-title">Accounts (user:pass:cookie)</span>
+          <span class="card-title">Cookies / Accounts (cookie hoặc user:pass:cookie)</span>
           <div style="display:flex; gap:8px; align-items:center;">
-            <span class="pill" id="pAcc">0 accs</span>
+            <span class="pill" id="pAcc">0 items</span>
             <label class="upload-btn" style="padding:4px 10px; min-height:auto; font-size:11.5px;">
               Import .txt
               <input type="file" id="fAcc" accept=".txt" hidden />
             </label>
           </div>
         </div>
-        <textarea id="inAcc" rows="7" placeholder="user:pass:_|WARNING:-DO-NOT-SHARE-THIS..."></textarea>
+        <textarea id="inAcc" rows="7" placeholder="_|WARNING:-DO-NOT-SHARE-THIS...&#10;hoặc player1:MyPass123:_|WARNING:-DO-NOT-SHARE-THIS..."></textarea>
 
         <div class="card-head">
-          <span class="card-title">Proxies (user:pass@host:port hoặc host:port:user:pass)</span>
+          <span class="card-title">Proxies (tùy chọn — user:pass@host:port hoặc host:port)</span>
           <span class="pill" id="pProxy">0 proxies</span>
         </div>
-        <textarea id="inProxy" rows="4" placeholder="http://user:pass@host:port&#10;host:port:user:pass&#10;host:port"></textarea>
+        <textarea id="inProxy" rows="3" placeholder="user:pass@1.2.3.4:8080&#10;1.2.3.4:8080:user:pass"></textarea>
 
-        <div class="controls">
+        <div class="opts">
           <div class="field">
-            <label for="inThreads">Threads</label>
-            <input type="number" id="inThreads" value="15" min="1" max="50" />
+            <label for="inpThreads">Threads (1 - 50)</label>
+            <input type="number" id="inpThreads" value="15" min="1" max="50" />
           </div>
-          <label class="check">
+          <label class="check-row">
             <input type="checkbox" id="chkKeepFailed" />
-            Keep failed in output
+            <span>Giữ dòng lỗi vào output</span>
           </label>
         </div>
 
         <div class="actions">
-          <button type="button" class="btn-primary" id="btnStart">START REFRESH</button>
+          <button type="button" class="btn-primary" id="btnStart">START BYPASS</button>
           <button type="button" class="btn-sec" id="btnClear">Clear</button>
         </div>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <span class="card-title" style="color:#6ee7b7;">Refreshed Output (user:pass:new_cookie)</span>
-          <span class="pill" id="pOk">0 accs</span>
+          <span class="card-title" style="color:#6ee7b7;">Bypassed Output</span>
+          <span class="pill" id="pOk">0 ok</span>
         </div>
-        <textarea id="outOk" rows="6" readonly placeholder="Cookie mới sẽ hiện tại đây..."></textarea>
+        <textarea id="outOk" rows="6" readonly placeholder="Cookie mới sau khi bypass sẽ xuất hiện tại đây..."></textarea>
 
         <div class="actions">
           <button type="button" class="btn-dl" id="btnDlOk">Download .txt</button>
@@ -395,16 +403,16 @@
 
         <div class="card-head">
           <span class="card-title" style="color:#fca5a5;">Failed</span>
-          <span class="pill" id="pFail">0 accs</span>
+          <span class="pill" id="pFail">0 fail</span>
         </div>
-        <textarea id="outFail" rows="3" readonly placeholder="Lỗi / cookie hết hạn / network..."></textarea>
+        <textarea id="outFail" rows="3" readonly placeholder="Cookie lỗi hoặc hết hạn..."></textarea>
 
         <div class="bar">
           <div class="bar-fill" id="barFill"></div>
         </div>
 
         <div class="log" id="logBox">
-          <div><span class="t">[READY]</span> <span class="info">Sẵn sàng trên Mobile &amp; PC.</span></div>
+          <div><span class="t">[READY]</span> <span class="info">Sẵn sàng bypass cookie &amp; Mobile.</span></div>
         </div>
       </section>
     </div>
@@ -419,9 +427,9 @@
     const btnStart = document.getElementById('btnStart');
 
     function syncCounts() {
-      const a = inAcc.value.split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#') && x.split(':').length >= 3).length;
-      const p = inProxy.value.split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#')).length;
-      document.getElementById('pAcc').textContent = `${a} accs`;
+      const a = inAcc.value.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).length;
+      const p = inProxy.value.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).length;
+      document.getElementById('pAcc').textContent = `${a} items`;
       document.getElementById('pProxy').textContent = `${p} proxies`;
     }
 
@@ -478,8 +486,8 @@
       URL.revokeObjectURL(url);
     }
 
-    document.getElementById('btnDlOk').addEventListener('click', () => downloadTxt('output_refreshed.txt', outOk.value));
-    document.getElementById('btnDlFail').addEventListener('click', () => downloadTxt('output_failed.txt', outFail.value));
+    document.getElementById('btnDlOk').addEventListener('click', () => downloadTxt('bypassed_cookies.txt', outOk.value));
+    document.getElementById('btnDlFail').addEventListener('click', () => downloadTxt('failed_cookies.txt', outFail.value));
 
     function appendLog(time, msg, cls = 'info') {
       const div = document.createElement('div');
@@ -495,26 +503,26 @@
 
       let total = 0, ok = 0, fail = 0;
       const updateStats = () => {
-        document.getElementById('mTotal').textContent = total;
-        document.getElementById('mOk').textContent = ok;
-        document.getElementById('mFail').textContent = fail;
-        document.getElementById('pOk').textContent = `${ok} accs`;
-        document.getElementById('pFail').textContent = `${fail} accs`;
+        document.getElementById('stTotal').textContent = total;
+        document.getElementById('stOk').textContent = ok;
+        document.getElementById('stFail').textContent = fail;
+        document.getElementById('pOk').textContent = `${ok} ok`;
+        document.getElementById('pFail').textContent = `${fail} fail`;
         document.getElementById('barFill').style.width = total ? `${Math.round(((ok + fail) / total) * 100)}%` : '0%';
       };
       updateStats();
 
       btnStart.disabled = true;
-      btnStart.textContent = 'REFRESHING...';
+      btnStart.textContent = 'RUNNING...';
 
       try {
-        const res = await fetch('/api/refresh', {
+        const res = await fetch('/api/bypass', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accounts: inAcc.value,
             proxies: inProxy.value,
-            threads: document.getElementById('inThreads').value,
+            threads: document.getElementById('inpThreads').value,
             keepFailed: document.getElementById('chkKeepFailed').checked,
           }),
         });
@@ -537,24 +545,21 @@
               total = d.total;
               updateStats();
             } else if (d.type === 'log') {
-              appendLog(d.time, d.msg, 'info');
+              appendLog(d.time, d.msg, d.level || 'info');
             } else if (d.type === 'success') {
               ok++;
               outOk.value += (outOk.value ? '\n' : '') + d.line;
-              appendLog(d.time, `OK · ${d.username}`, 'ok');
+              appendLog(d.time, `OK · ${d.username}: ${d.msg}`, 'ok');
               updateStats();
             } else if (d.type === 'fail') {
               fail++;
-              if (d.keep) {
-                outOk.value += (outOk.value ? '\n' : '') + d.line;
-              }
-              outFail.value += (outFail.value ? '\n' : '') + `${d.username} - ${d.msg}`;
+              outFail.value += (outFail.value ? '\n' : '') + d.line;
               appendLog(d.time, `FAIL · ${d.username}: ${d.msg}`, 'err');
               updateStats();
             } else if (d.type === 'error') {
               appendLog(d.time, d.msg, 'err');
             } else if (d.type === 'done') {
-              appendLog(d.time, `DONE · ${ok}/${total} refreshed`, 'ok');
+              appendLog(d.time, `DONE · ${ok}/${total} bypassed`, 'ok');
             }
           }
         }
@@ -562,9 +567,9 @@
         appendLog('ERR', err.message, 'err');
       } finally {
         btnStart.disabled = false;
-        btnStart.textContent = 'START REFRESH';
+        btnStart.textContent = 'START BYPASS';
       }
     });
   </script>
 </body>
-          </html>
+</html>
